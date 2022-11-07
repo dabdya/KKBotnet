@@ -3,7 +3,7 @@ from ipaddress import ip_address
 from socketserver import BaseRequestHandler
 
 
-from client import Client
+from client import SocketClient
 from storage import BaseStorage
 from network import NetworkOptions, Address
 from command import Command, ConsoleCommand, ChildCommand
@@ -16,22 +16,19 @@ class Bot(BaseRequestHandler):
 
     def __init__(self, storage: BaseStorage, options: NetworkOptions, *args, **kwargs) -> None:
         self.storage, self.options = storage, options
-
-        self.options_template = NetworkOptions(
-            path = None, address = None,
-            buffer_size = self.options.buffer_size,
-            encoding = self.options.encoding
-        )
         super().__init__(*args, **kwargs)
 
     def handle(self) -> None:
         """Contains the request processing flow"""
+        print(self.storage.get_childs())
+        print(self.storage.get_parents())
         raw_data = self.request.recv(self.options.buffer_size).strip()
         command = self.get_command(raw_data, self.options.encoding)
 
         if not command:
-            Client(self.options_template).direct_answer(
-                socket = self.request, message = "Unsupported command"); return
+            SocketClient(self.options).direct_message(
+                socket = self.request, message = "Unsupported command"
+            ); return
 
         client_address = Address(
             host = ip_address(self.client_address[0]), 
@@ -53,12 +50,7 @@ class Bot(BaseRequestHandler):
         elif data.find("ADD_CHILD") >= 0:
             _, host, port = data.split(":")
             child_address = Address(host = ip_address(host), port = int(port))
-            return ChildCommand(
-                storage = self.storage, child = child_address, 
-                direct_options = self.options_template
-            )
-
-        #TODO, parse report command, it is not clear yet what to do with reports
+            return ChildCommand(self.storage, child_address, self.options)
 
     def execute_command(self, command: Command) -> str:
         """Executes command and returns result"""
@@ -66,11 +58,11 @@ class Bot(BaseRequestHandler):
 
     def forward_command(self, command: Command) -> None:
         """Send a command to each child in the storage"""
-        pass # TODO, using client to send a command
+        client = SocketClient(self.options)
+        for child in self.storage.get_childs():
+            client.change_destination(child)
+            client.send_message(str(command))
 
     def backward_report(self, report: str) -> None:
         """Send a command result to each parent"""
-        Client(self.options_template).direct_answer(
-            socket = self.request, message = report)
-        # TODO, using client to send a report
-        
+        SocketClient(self.options).direct_message(socket = self.request, message = report)

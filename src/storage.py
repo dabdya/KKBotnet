@@ -24,9 +24,13 @@ class BaseStorage(ABC):
 
 class InMemoryStorage(BaseStorage):
     """Lives while the server is running. Not resistant to system restart"""
-    def __init__(self, childs: Set[Address] = set(), parents: Set[Address] = set()) -> None:
+    def __init__(self, childs: Set[Address] = None, parents: Set[Address] = None) -> None:
         super().__init__()
         self.childs, self.parents = childs, parents
+        if not self.childs:
+            self.childs = set()
+        if not self.parents:
+            self.parents = set()
     
     def get_childs(self) -> Set[Address]:
         return self.childs
