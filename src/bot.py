@@ -6,7 +6,7 @@ from socketserver import BaseRequestHandler
 from client import SocketClient
 from storage import BaseStorage
 from network import NetworkOptions, Address
-from command import Command, ConsoleCommand, ChildCommand
+from command import Command, ConsoleCommand, ChildCommand, InitCommand
 
 
 class Bot(BaseRequestHandler):
@@ -20,8 +20,7 @@ class Bot(BaseRequestHandler):
 
     def handle(self) -> None:
         """Contains the request processing flow"""
-        print(self.storage.get_childs())
-        print(self.storage.get_parents())
+        print(self.storage.get_parent(), "\n", self.storage.get_childs())
         raw_data = self.request.recv(self.options.buffer_size).strip()
         command = self.get_command(raw_data, self.options.encoding)
 
@@ -30,12 +29,24 @@ class Bot(BaseRequestHandler):
                 socket = self.request, message = "Unsupported command"
             ); return
 
+        parent = self.storage.get_parent()
+
         client_address = Address(
             host = ip_address(self.client_address[0]), 
             port = int(self.client_address[1])
         )
 
-        self.storage.add_parent(client_address)
+        if not isinstance(command, InitCommand):
+            if parent != client_address:
+                SocketClient(self.options).direct_message(
+                    socket = self.request, message = "Not support operation"
+                ); return
+        else:
+            if parent == client_address:
+                SocketClient(self.options).direct_message(
+                    socket = self.request, message = "Not support operation"
+                ); return
+
         self.forward_command(command)
         self.backward_report(self.execute_command(command))
 
@@ -52,17 +63,28 @@ class Bot(BaseRequestHandler):
             child_address = Address(host = ip_address(host), port = int(port))
             return ChildCommand(self.storage, child_address, self.options)
 
+        elif data.find("INIT") >= 0:
+            _, host, port = data.split(":")
+            child_address = Address(host = ip_address(host), port = int(port))
+            return InitCommand(self.storage, child_address)
+
     def execute_command(self, command: Command) -> str:
         """Executes command and returns result"""
         return command.execute()
 
     def forward_command(self, command: Command) -> None:
         """Send a command to each child in the storage"""
+        if isinstance(command, InitCommand):
+            return
         client = SocketClient(self.options)
         for child in self.storage.get_childs():
             client.change_destination(child)
-            client.send_message(str(command))
+            raw_data = client.send_message(str(command))
+            data = raw_data.decode(encoding = self.options.encoding)
+            if data == "Not support operation":
+                self.storage.delete_child(child)
 
     def backward_report(self, report: str) -> None:
         """Send a command result to each parent"""
+        # Every node has one parent?
         SocketClient(self.options).direct_message(socket = self.request, message = report)

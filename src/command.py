@@ -40,6 +40,22 @@ class ConsoleCommand(Command):
         return "CONSOLE {}".format(" ".join([self.name, *self.args]))
 
 
+class InitCommand(Command):
+    def __init__(self, storage: BaseStorage, child: Address) -> None:
+        self.storage = storage
+        self.child = child
+
+    def execute(self) -> str:
+        print("A", self.storage.get_childs())
+        if self.child in self.storage.get_childs():
+            return "ALREADY"
+
+        self.storage.add_child(self.child)
+        return "OK"
+    
+    def __str__(self) -> str:
+        pass
+
 class ChildCommand(Command):
     """ Randomly selects a child host in the storage to redirect. Then adds a child to self storage"""
     def __init__(

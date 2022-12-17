@@ -14,35 +14,42 @@ class BaseStorage(ABC):
         pass
 
     @abstractmethod
-    def get_parents(self) -> Set[Address]:
+    def delete_child(self, child: Address) -> None:
         pass
 
     @abstractmethod
-    def add_parent(self, parent: Address) -> None:
+    def get_parent(self) -> Address:
+        pass
+
+    @abstractmethod
+    def change_parent(self, parent: Address) -> None:
         pass
 
 
 class InMemoryStorage(BaseStorage):
     """Lives while the server is running. Not resistant to system restart"""
-    def __init__(self, childs: Set[Address] = None, parents: Set[Address] = None) -> None:
+    def __init__(self, parent: Address = None, childs: Set[Address] = None) -> None:
         super().__init__()
-        self.childs, self.parents = childs, parents
+        self.childs, self.parent = childs, parent
         if not self.childs:
             self.childs = set()
-        if not self.parents:
-            self.parents = set()
+
+        self.parent = parent
     
     def get_childs(self) -> Set[Address]:
         return self.childs
     
-    def get_parents(self) -> Set[Address]:
-        return self.parents
+    def get_parent(self) -> Address:
+        return self.parent
+
+    def delete_child(self, child: Address) -> None:
+        self.childs.remove(child)
     
     def add_child(self, child: Address) -> None:
         self.childs.add(child)
 
-    def add_parent(self, parent: Address) -> None:
-        self.parents.add(parent)
+    def change_parent(self, parent: Address) -> None:
+        self.parent = parent
 
 
 class FileStorage(BaseStorage):

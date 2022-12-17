@@ -16,6 +16,14 @@ class Address:
     @host.setter
     def host(self, value):
         self._host = ip_address(value)
+    
+    def __hash__(self) -> int:
+        return hash(repr(self))
+
+    def __eq__(self, obj: object) -> bool:  
+        if not obj: 
+            return False          
+        return self.host == obj.host and self.port == obj.port
 
     def __str__(self) -> str:
         return "{}:{}".format(self._host, self.port)
