@@ -1,42 +1,38 @@
-import socket
-import sys
+import socket, sys
 
-from typing import Optional, Union
-from abc import ABC, abstractmethod
-
+from typing import Optional
 from ipaddress import ip_address
 from network import NetworkOptions, Address
 
 
-class NetworkClient(ABC): 
-    def __init__(self, network_options: NetworkOptions) -> None:
-        self.network_options = network_options
+class NetworkClient: 
+    def __init__(self, destination_network_options: NetworkOptions) -> None:
+        self.destination_network_options = destination_network_options
 
     def change_destination(self, address: Address) -> None:
         self.network_options.address = address
 
-    @abstractmethod
     def send_message(self, message: str) -> Optional[str]:
-        pass
+        raise NotImplementedError()
 
 
 class SocketClient(NetworkClient):
-
     def send_message(self, message: str) -> Optional[str]:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((
-                self.network_options.address.host, self.network_options.address.port)
+                self.destination_network_options.address.host, 
+                self.destination_network_options.address.port)
             )
-            sock.sendall(bytes(message, self.network_options.encoding))
+            sock.sendall(bytes(message, self.destination_network_options.encoding))
             return self.receive(sock)
 
     def direct_message(self, socket: socket.socket, message: str) -> Optional[str]:
-        socket.sendall(bytes(message, self.network_options.encoding))
+        socket.sendall(bytes(message, self.destination_network_options.encoding))
         return self.receive(socket)
 
     def receive(self, socket: socket.socket) -> Optional[str]:
-        received = socket.recv(self.network_options.buffer_size)
-        return str(received, self.network_options.encoding)
+        received = socket.recv(self.destination_network_options.buffer_size)
+        return str(received, self.destination_network_options.encoding)
 
 
 if __name__ == "__main__":

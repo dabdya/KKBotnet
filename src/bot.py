@@ -20,7 +20,6 @@ class Bot(BaseRequestHandler):
 
     def handle(self) -> None:
         """Contains the request processing flow"""
-        print(self.storage.get_parent(), "\n", self.storage.get_childs())
         raw_data = self.request.recv(self.options.buffer_size).strip()
         command = self.get_command(raw_data, self.options.encoding)
 

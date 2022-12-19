@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Set, Union
 from network import Address
 
+from pathlib import Path
 
 class BaseStorage(ABC):
     """Storage interface"""
@@ -29,12 +30,10 @@ class BaseStorage(ABC):
 class InMemoryStorage(BaseStorage):
     """Lives while the server is running. Not resistant to system restart"""
     def __init__(self, parent: Address = None, childs: Set[Address] = None) -> None:
-        super().__init__()
+        super(InMemoryStorage, self).__init__()
         self.childs, self.parent = childs, parent
         if not self.childs:
             self.childs = set()
-
-        self.parent = parent
     
     def get_childs(self) -> Set[Address]:
         return self.childs

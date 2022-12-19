@@ -1,9 +1,11 @@
+import btdht, binascii, dotenv, random, os, time
+import socketserver, threading
+
+from argparse import ArgumentParser, Namespace
+from typing import Iterable, Optional
+from ipaddress import ip_address
 from functools import partial
 from pathlib import Path
-from ipaddress import ip_address
-import threading
-import socketserver
-from typing import Iterable, Optional
 
 from storage import BaseStorage, InMemoryStorage
 from network import NetworkOptions, Address
@@ -15,73 +17,73 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """For asynchronous request processing"""
     pass
 
-def init_parent(peers: Iterable[Address], self_options: NetworkOptions) -> Optional[Address]:
-    import random, os
-    port_shift = os.environ.get("PORT_SHIFT", 0)
-    for host, port in random.shuffle(peers):
-        
+
+def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float) -> Optional[Address]:
+    dht = btdht.DHT(); dht.start()
+    time.sleep(bootstrap_wait_sec)
+
+    file_hash = os.environ.get("FILE_HASH", str())
+    port_shift = int(os.environ.get("PORT_SHIFT", 0))
+
+    peers = dht.get_peers(binascii.a2b_hex(file_hash))
+    if not peers: return
+    random.shuffle(peers)
+    
+    for host, port in peers:
         parent_address = Address(ip_address(host), max(0, int(port) - port_shift))
-
         parent_options = NetworkOptions(
+            path = None,
             address = parent_address,
-            buffer_size = 1024,
-            encoding = "utf-8"
+            buffer_size = network_options.buffer_size,
+            encoding = network_options.encoding
         )
-
         client = SocketClient(parent_options)
-        received = client.send_message(f"INIT {self_options.address.host} {self_options.address.port}")
+        try:
+            received = client.send_message(
+                f"INIT:{self_network_options.address.host}:{self_network_options.address.port}"
+            )
+        except TimeoutError as err:
+            continue
         if received == "OK":
             return parent_address
 
 
-def run_server(
-    peers: Iterable[Address], is_botmaster: bool, 
-    network_options: NetworkOptions, bot_storage: BaseStorage) -> None:
+def configure_server(network_options: NetworkOptions, bot_storage: BaseStorage) -> ThreadedTCPServer:
     bot = partial(Bot, bot_storage, network_options)
+    server = ThreadedTCPServer((
+        network_options.address.host, network_options.address.port), bot
+    )
 
-    with ThreadedTCPServer((
-        network_options.address.host, network_options.address.port), bot) as server:
+    if not network_options.address.port:
+        network_options.change_port(server.server_address[1])
 
-        if not network_options.address.port:
-            network_options.change_port(server.server_address[1])
+    return server
 
-        print("Server startup on {}".format(network_options.address))
 
-        if not is_botmaster:
-            parent = init_parent(peers, network_options)
-            # TODO: handle case then parent not found
-            bot_storage.change_parent(parent)
-
+def run_server(server: ThreadedTCPServer) -> None:
+    with server:
         server_thread = threading.Thread(target = server.serve_forever)
-        server_thread.start(); server_thread.join()
+        server_thread.start()
+        print("Server startup on {}".format(network_options.address))
+        server_thread.join()
+
+
+def parse_args() -> Namespace:
+    parser = ArgumentParser(add_help = False)
+    parser.add_argument(
+        "-m", "--master", action = "store_true"
+    )
+    return parser.parse_args()
+
+
+def load_environment(file: Path) -> None:
+    dotenv.load_dotenv(file)
 
 
 if __name__ == "__main__":
 
-    import btdht, binascii, dotenv, os, time, sys
-
-    if len(sys.argv) > 2:
-        print(":)"); sys.exit(-1)
-
-    flag_name, flag_value = sys.argv[1].split("=")
-
-    if flag_name != "is_botmaster":
-        print("0_0"); sys.exit(-2)
-    
-    try:
-        is_botmaster = bool(flag_value)
-    except Exception:
-        print(":("); sys.exit(-3)
-
-    dht = btdht.DHT()
-    dht.start()
-
-    print("DHT setup")
-    time.sleep(15)
-
-    dotenv.load_dotenv("../config")
-    hash = os.environ.get("TORRENT_HASH", None)
-    peers = dht.get_peers(binascii.a2b_hex(hash))
+    load_environment(file = Path("../environment.env"))
+    args = parse_args()
 
     network_options = NetworkOptions(
         path = Path("data/network_options.json"),
@@ -90,8 +92,21 @@ if __name__ == "__main__":
         encoding = "utf-8"
     )
 
+    storage = InMemoryStorage()
+    server = configure_server(network_options, bot_storage = storage)
+
+    if not args.master:
+        parent = init_parent(network_options, bootstrap_wait_sec = 30)
+        if not parent:
+            print("Parent not found")
+            # TODO: handle case when parent was not found
+        else:
+            storage.change_parent(parent)
+            print(parent)
+
     try:
-        run_server(peers, is_botmaster, network_options, bot_storage = InMemoryStorage())
+        run_server(server)
     except OSError as err:
         network_options.change_port(new_port = 0)
-        run_server(peers, is_botmaster, network_options, bot_storage = InMemoryStorage())
+        server = configure_server(network_options, bot_storage = storage)
+        run_server(server)
