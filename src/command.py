@@ -54,7 +54,7 @@ class InitCommand(Command):
         return "OK"
     
     def __str__(self) -> str:
-        pass
+        return "INIT"
 
 class ChildCommand(Command):
     """ Randomly selects a child host in the storage to redirect. Then adds a child to self storage"""

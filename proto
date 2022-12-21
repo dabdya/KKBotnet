@@ -1,2 +1,2 @@
-CONSOLE cmd
+CONSOLE cmd id
 ADD_CHILD:host:port

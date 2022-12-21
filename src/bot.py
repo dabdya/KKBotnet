@@ -4,6 +4,7 @@ from socketserver import BaseRequestHandler
 
 
 from client import SocketClient
+from dicts.commands_dict import ADD_CHILD_COMMAND, CONSOLE_COMMAND, INIT_COMMAND
 from storage import BaseStorage
 from network import NetworkOptions, Address
 from command import Command, ConsoleCommand, ChildCommand, InitCommand
@@ -22,10 +23,14 @@ class Bot(BaseRequestHandler):
         """Contains the request processing flow"""
         raw_data = self.request.recv(self.options.buffer_size).strip()
         command = self.get_command(raw_data, self.options.encoding)
-
         if not command:
             SocketClient(self.options).direct_message(
                 socket = self.request, message = "Unsupported command"
+            ); return
+        is_command_already_execute: bool = self.storage.is_command_hashed(command)
+        if is_command_already_execute:
+            SocketClient(self.options).direct_message(
+                socket = self.request, message = "Command is already executed"
             ); return
 
         parent = self.storage.get_parent()
@@ -34,6 +39,8 @@ class Bot(BaseRequestHandler):
             host = ip_address(self.client_address[0]), 
             port = int(self.client_address[1])
         )
+        
+        self.storage.add_hash_command(command)
 
         if not isinstance(command, InitCommand):
             if parent != client_address:
@@ -53,17 +60,17 @@ class Bot(BaseRequestHandler):
         """Tries parse command and returns it"""
         data = raw_data.decode(encoding = encoding)
 
-        if data.find("CONSOLE") >= 0:
+        if data.find(CONSOLE_COMMAND) >= 0:
             _, name, *args = data.split()
             return ConsoleCommand(name, tuple(args))
 
-        elif data.find("ADD_CHILD") >= 0:
+        elif data.find(ADD_CHILD_COMMAND) >= 0:
             _, host, port = data.split(":")
             child_address = Address(host = ip_address(host), port = int(port))
             return ChildCommand(self.storage, child_address, self.options)
 
-        elif data.find("INIT") >= 0:
-            _, host, port = data.split(":")
+        elif data.find(INIT_COMMAND) >= 0:
+            _, host, port = data.split(" ")
             child_address = Address(host = ip_address(host), port = int(port))
             return InitCommand(self.storage, child_address)
 
@@ -78,8 +85,7 @@ class Bot(BaseRequestHandler):
         client = SocketClient(self.options)
         for child in self.storage.get_childs():
             client.change_destination(child)
-            raw_data = client.send_message(str(command))
-            data = raw_data.decode(encoding = self.options.encoding)
+            data = client.send_message(str(command))
             if data == "Not support operation":
                 self.storage.delete_child(child)
 

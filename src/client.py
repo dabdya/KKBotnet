@@ -10,7 +10,7 @@ class NetworkClient:
         self.destination_network_options = destination_network_options
 
     def change_destination(self, address: Address) -> None:
-        self.network_options.address = address
+        self.destination_network_options.address = address
 
     def send_message(self, message: str) -> Optional[str]:
         raise NotImplementedError()
