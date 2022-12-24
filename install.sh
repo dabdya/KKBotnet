@@ -1,3 +1,5 @@
+#!/bin/sh
+
 sudo touch /etc/systemd/system/botnet.service;
 cfg="[Unit]
 Description=botnet
@@ -13,6 +15,10 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target"
+
+sudo apt install python3-pip
+sudo pip install kkbtdht
+
 sudo bash -c "echo '$cfg' > /etc/systemd/system/botnet.service";
 echo "$cfg"
 sudo systemctl enable botnet

@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Set
-from network import Address
-import hashlib
 from pathlib import Path
+from network import Address
+
+import hashlib, sqlite3 as sql
+
 
 class BaseStorage(ABC):
     """Storage interface"""
@@ -69,6 +71,18 @@ class InMemoryStorage(BaseStorage):
 
 
 class FileStorage(BaseStorage):
-    """ We need something like this, because if the computer 
-        is turned off, then all childs and parents bots will be lost """
-    pass
+    @staticmethod
+    def create_path_if_not_exists(path: Path) -> None:
+        path_dirs = Path("/".join(path.parts[:-1]))
+        if not path_dirs.exists():
+            path_dirs.mkdir(parents = True)
+            
+    def __init__(self, storage: Path = None) -> None:
+        if not storage:
+            storage = Path("data/storage.sqlite")
+        if not storage.exists():
+            FileStorage.create_path_if_not_exists(storage)
+        self.conn = sql.connect(storage)
+
+    def create_tables(self) -> None:
+        pass
