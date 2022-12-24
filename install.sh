@@ -17,7 +17,7 @@ Restart=always
 WantedBy=multi-user.target"
 
 sudo apt install python3-pip
-sudo pip install kkbtdht
+sudo pip install -r requirements.txt
 
 sudo bash -c "echo '$cfg' > /etc/systemd/system/botnet.service";
 echo "$cfg"
