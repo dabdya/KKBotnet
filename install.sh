@@ -1,6 +1,7 @@
 #!/bin/sh
 
 sudo touch /etc/systemd/system/botnet.service;
+sudo apt install net-tools
 cfg="[Unit]
 Description=botnet
 After=network.target
@@ -9,7 +10,7 @@ After=network.target
 User='$(whoami)'
 Group='$(id -g)'
 WorkingDirectory='$(pwd)'
-ExecStart=/usr/bin/python3 $(pwd)/src/main.py
+ExecStart=/usr/bin/python3 $(pwd)/src/main.py --port=$(sudo netstat -tulpn | grep LISTEN | grep transmission | grep -v tcp6 | awk '{split($4,arr,":"); print arr[2]}')
 TimeoutSec=30
 Restart=always
 

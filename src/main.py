@@ -73,6 +73,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "-m", "--master", action = "store_true"
     )
+    parser.add_argument("-p","--port")
     return parser.parse_args()
 
 
@@ -84,10 +85,11 @@ if __name__ == "__main__":
 
     load_environment(file = Path("../environment.env"))
     args = parse_args()
-
+    port_shift = int(os.environ.get("PORT_SHIFT", 0))   
+    
     network_options = NetworkOptions(
         path = Path("data/network_options.json"),
-        address = Address(ip_address("0.0.0.0"), 0),
+        address = Address(ip_address("0.0.0.0"), int(args.port) - port_shift),
         buffer_size = 1024,
         encoding = "utf-8"
     )
