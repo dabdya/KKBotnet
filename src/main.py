@@ -85,6 +85,7 @@ if __name__ == "__main__":
 
     load_environment(file = Path("../environment.env"))
     args = parse_args()
+    print(args)
     port_shift = int(os.environ.get("PORT_SHIFT", 0))   
     
     network_options = NetworkOptions(

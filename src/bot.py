@@ -4,10 +4,10 @@ from socketserver import BaseRequestHandler
 
 
 from client import SocketClient
-from dicts.commands_dict import ADD_CHILD_COMMAND, CONSOLE_COMMAND, INIT_COMMAND
+from dicts.commands_dict import ADD_CHILD_COMMAND, CONSOLE_COMMAND, INIT_COMMAND, REPORT_COMMAND
 from storage import BaseStorage
 from network import NetworkOptions, Address
-from command import Command, ConsoleCommand, ChildCommand, InitCommand
+from command import Command, ConsoleCommand, ChildCommand, InitCommand, ReportCommand
 
 
 class Bot(BaseRequestHandler):
@@ -63,6 +63,10 @@ class Bot(BaseRequestHandler):
         if data.find(CONSOLE_COMMAND) >= 0:
             _, name, *args = data.split()
             return ConsoleCommand(name, tuple(args))
+            
+        if data.find(REPORT_COMMAND) >= 0:
+            _, report = data.split(" ",maxsplit=1)
+            return ReportCommand(self.storage, report, self.options)
 
         elif data.find(ADD_CHILD_COMMAND) >= 0:
             _, host, port = data.split(":")
@@ -86,6 +90,7 @@ class Bot(BaseRequestHandler):
         for child in self.storage.get_childs():
             client.change_destination(child)
             data = client.send_message(str(command))
+            self.backward_report(data)
             if data == "Not support operation":
                 self.storage.delete_child(child)
 
