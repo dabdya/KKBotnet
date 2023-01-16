@@ -18,6 +18,12 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 
+def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -> None:
+    parent = storage.get_parent()
+    client = SocketClient(network_options)
+    # TODO: dodelat'
+
+
 def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float) -> Optional[Address]:
     dht = btdht.DHT(); dht.start()
     time.sleep(bootstrap_wait_sec)
@@ -101,6 +107,7 @@ if __name__ == "__main__":
         parent = init_parent(network_options, bootstrap_wait_sec = 30)
         if not parent:
             print("Parent not found")
+            
             # TODO: handle case when parent was not found
         else:
             storage.change_parent(parent)
@@ -110,5 +117,6 @@ if __name__ == "__main__":
         run_server(server)
     except OSError as err:
         network_options.change_port(new_port = 0)
+        notify_port_changed(network_options, storage)
         server = configure_server(network_options, bot_storage = storage)
         run_server(server)
