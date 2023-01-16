@@ -34,23 +34,23 @@ class Bot(BaseRequestHandler):
             ); return
 
         parent = self.storage.get_parent()
-
+        print(parent)
         client_address = Address(
-            host = ip_address(self.client_address[0]), 
+            host = ip_address(self.client_address[0]),
             port = int(self.client_address[1])
         )
-        
+
         self.storage.add_hash_command(command)
 
         if not isinstance(command, InitCommand):
-            if parent != client_address:
+            if parent.host != client_address.host:
                 SocketClient(self.options).direct_message(
-                    socket = self.request, message = "Not support operation"
+                    socket = self.request, message = "You are not my parent"
                 ); return
         else:
             if parent == client_address:
                 SocketClient(self.options).direct_message(
-                    socket = self.request, message = "Not support operation"
+                    socket = self.request, message = "INIT already executed"
                 ); return
 
         self.forward_command(command)
@@ -74,7 +74,7 @@ class Bot(BaseRequestHandler):
             return ChildCommand(self.storage, child_address, self.options)
 
         elif data.find(INIT_COMMAND) >= 0:
-            _, host, port = data.split(" ")
+            _, host, port = data.split(":")
             child_address = Address(host = ip_address(host), port = int(port))
             return InitCommand(self.storage, child_address)
 
@@ -96,5 +96,4 @@ class Bot(BaseRequestHandler):
 
     def backward_report(self, report: str) -> None:
         """Send a command result to each parent"""
-        # Every node has one parent?
         SocketClient(self.options).direct_message(socket = self.request, message = report)

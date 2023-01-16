@@ -1,4 +1,8 @@
-import btdht, binascii, dotenv, random, os, time
+import btdht, binascii, dotenv, random, os, time, logging
+
+
+from dht import DHT
+
 import socketserver, threading
 
 from argparse import ArgumentParser, Namespace
@@ -18,19 +22,25 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 
+def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -> None:
+    parent = storage.get_parent()
+    client = SocketClient(network_options)
+    # TODO: dodelat'
+
+
 def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float) -> Optional[Address]:
-    dht = btdht.DHT(); dht.start()
-    time.sleep(bootstrap_wait_sec)
+    tracker_address = Address(ip_address("51.250.96.145"), 3000)
+    dht = DHT(tracker_address)
 
     file_hash = os.environ.get("FILE_HASH", str())
-    port_shift = int(os.environ.get("PORT_SHIFT", 0))
+    peers = dht.get_peers(file_hash)
 
-    peers = dht.get_peers(binascii.a2b_hex(file_hash))
     if not peers: return
     random.shuffle(peers)
     
-    for host, port in peers:
-        parent_address = Address(ip_address(host), max(0, int(port) - port_shift))
+    for peer in peers:
+        host, port = peer.host, peer.port
+        parent_address = Address(ip_address(host), max(0, int(port)))
         parent_options = NetworkOptions(
             path = None,
             address = parent_address,
@@ -90,7 +100,7 @@ if __name__ == "__main__":
     
     network_options = NetworkOptions(
         path = Path("data/network_options.json"),
-        address = Address(ip_address("0.0.0.0"), int(args.port) - port_shift),
+        address = Address(ip_address("0.0.0.0"), int(args.port)),
         buffer_size = 1024,
         encoding = "utf-8"
     )
@@ -99,9 +109,10 @@ if __name__ == "__main__":
     server = configure_server(network_options, bot_storage = storage)
 
     if not args.master:
-        parent = init_parent(network_options, bootstrap_wait_sec = 30)
+        parent = init_parent(network_options, bootstrap_wait_sec = 90)
         if not parent:
             print("Parent not found")
+            
             # TODO: handle case when parent was not found
         else:
             storage.change_parent(parent)
@@ -111,5 +122,6 @@ if __name__ == "__main__":
         run_server(server)
     except OSError as err:
         network_options.change_port(new_port = 0)
+        notify_port_changed(network_options, storage)
         server = configure_server(network_options, bot_storage = storage)
         run_server(server)
