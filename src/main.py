@@ -1,4 +1,7 @@
-import btdht, binascii, dotenv, random, os, time
+import btdht, binascii, dotenv, random, os, time, logging
+
+from systemd.journal import JournalHandler
+
 import socketserver, threading
 
 from argparse import ArgumentParser, Namespace
@@ -25,14 +28,25 @@ def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -
 
 
 def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float) -> Optional[Address]:
-    dht = btdht.DHT(); dht.start()
+    log = logging.getLogger("femo")
+    log.addHandler(JournalHandler())
+    log.setLevel(logging.INFO)
+    dht = btdht.DHT();
+    dht.start()
     time.sleep(bootstrap_wait_sec)
 
     file_hash = os.environ.get("FILE_HASH", str())
     port_shift = int(os.environ.get("PORT_SHIFT", 0))
 
     peers = dht.get_peers(binascii.a2b_hex(file_hash))
-    if not peers: return
+    log.info(peers)
+    log.info(peers)
+    log.info(peers)
+    if not peers:
+        log.info("fsfsf")
+        import sys
+        sys.exit(414)
+        return
     random.shuffle(peers)
     
     for host, port in peers:
@@ -104,7 +118,7 @@ if __name__ == "__main__":
     server = configure_server(network_options, bot_storage = storage)
 
     if not args.master:
-        parent = init_parent(network_options, bootstrap_wait_sec = 30)
+        parent = init_parent(network_options, bootstrap_wait_sec = 90)
         if not parent:
             print("Parent not found")
             
