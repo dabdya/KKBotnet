@@ -1,6 +1,7 @@
 import btdht, binascii, dotenv, random, os, time, logging
 
-from systemd.journal import JournalHandler
+
+from dht import DHT
 
 import socketserver, threading
 
@@ -28,29 +29,17 @@ def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -
 
 
 def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float) -> Optional[Address]:
-    log = logging.getLogger("femo")
-    log.addHandler(JournalHandler())
-    log.setLevel(logging.INFO)
-    dht = btdht.DHT();
-    dht.start()
-    time.sleep(bootstrap_wait_sec)
+    tracker_address = Address(ip_address("51.250.96.45"), 3000)
+    dht = DHT(tracker_address)
 
     file_hash = os.environ.get("FILE_HASH", str())
-    port_shift = int(os.environ.get("PORT_SHIFT", 0))
+    peers = dht.get_peers(file_hash)
 
-    peers = dht.get_peers(binascii.a2b_hex(file_hash))
-    log.info(peers)
-    log.info(peers)
-    log.info(peers)
-    if not peers:
-        log.info("fsfsf")
-        import sys
-        sys.exit(414)
-        return
+    if not peers: return
     random.shuffle(peers)
     
     for host, port in peers:
-        parent_address = Address(ip_address(host), max(0, int(port) - port_shift))
+        parent_address = Address(ip_address(host), max(0, int(port)))
         parent_options = NetworkOptions(
             path = None,
             address = parent_address,
