@@ -29,7 +29,7 @@ def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -
 
 
 def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float) -> Optional[Address]:
-    tracker_address = Address(ip_address("51.250.96.45"), 3000)
+    tracker_address = Address(ip_address("51.250.96.145"), 3000)
     dht = DHT(tracker_address)
 
     file_hash = os.environ.get("FILE_HASH", str())

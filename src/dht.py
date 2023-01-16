@@ -12,8 +12,7 @@ class DHT:
 
     def get_peers(self, hash: UUID) -> List[Address]:
         conn = http.client.HTTPConnection(str(self.address))
-        params = urllib.parse.urlencode({'@hash': hash})
-        conn.request("GET", "peers", params)
+        conn.request("GET", f"/peers?hash={hash}")
         response = conn.getresponse()
 
         if not response.status == 200:
@@ -23,7 +22,7 @@ class DHT:
         content = response.read().decode()
         peers = [
             Address(ip_address(peer["host"]), int(peer["port"])) 
-            for peer in json.load(content)
+            for peer in json.loads(content)
         ]
 
         conn.close()
@@ -32,9 +31,7 @@ class DHT:
     def add_peers(self, peers: List[Address], hash: UUID) -> None:
         conn = http.client.HTTPConnection(str(self.address))
         for address in peers:
-            params = urllib.parse.urlencode({
-                '@host': address.host, '@port': address.port, 'hash': hash})
-            conn.request("POST", params)
+            conn.request("POST", f"/peers?host={address.host}&port={address.port}&hash={hash}")
 
             response = conn.getresponse()
             content = response.read().decode()
