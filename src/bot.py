@@ -70,7 +70,7 @@ class Bot(BaseRequestHandler):
             return ChildCommand(self.storage, child_address, self.options)
 
         elif data.find(INIT_COMMAND) >= 0:
-            _, host, port = data.split(" ")
+            _, host, port = data.split(":")
             child_address = Address(host = ip_address(host), port = int(port))
             return InitCommand(self.storage, child_address)
 

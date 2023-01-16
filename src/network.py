@@ -43,7 +43,7 @@ class NetworkOptions:
         if not path: return
 
         if not self.path.exists():
-            self.path.parent.mkdir(parents=True)
+            self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.touch()
 
             options = {

@@ -38,7 +38,8 @@ def init_parent(self_network_options: NetworkOptions, bootstrap_wait_sec: float)
     if not peers: return
     random.shuffle(peers)
     
-    for host, port in peers:
+    for peer in peers:
+        host, port = peer.host, peer.port
         parent_address = Address(ip_address(host), max(0, int(port)))
         parent_options = NetworkOptions(
             path = None,
@@ -98,7 +99,7 @@ if __name__ == "__main__":
     
     network_options = NetworkOptions(
         path = Path("data/network_options.json"),
-        address = Address(ip_address("0.0.0.0"), int(args.port) - port_shift),
+        address = Address(ip_address("0.0.0.0"), int(args.port)),
         buffer_size = 1024,
         encoding = "utf-8"
     )
