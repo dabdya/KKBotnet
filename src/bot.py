@@ -30,17 +30,16 @@ class Bot(BaseRequestHandler):
         LOG.info("New request from {}".format(client_address))
 
         raw_data = self.request.recv(self.options.buffer_size).strip()
-        
-        cert = open("./cert.pem")
+        print(raw_data)
+        cert = open("./cert.pem","rb")
         raw_cert = cert.read()
         load_cert = load_certificate(FILETYPE_PEM, raw_cert)
-        data = raw_data.decode(encoding = self.options.encoding)
-        print(data)
-        message, signed_data = data.split("@")
-        print(data.split("@"))
+        raw_data, digest = raw_data.split(b'@',1)
+        print(raw_data)
         try:
-            verify(load_cert, signed_data.encode(self.options.encoding), message, "sha256")
+            verify(load_cert, digest, raw_data, "sha256")
         except Exception as err:
+            LOG.info(err)
             LOG.info("Failed to verify. Exit")
             return
 
