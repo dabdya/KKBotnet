@@ -67,8 +67,10 @@ class InitCommand(Command):
         child = self.get_child_address()
         LOG.info("Child address: {}".format(child))
         if child in self.storage.get_childs():
+            LOG.info("Already have child: {}".format(child))
             return "ALREADY"
 
+        LOG.info("Adding child: {}".format(child))
         self.storage.add_child(child)
         return "OK"
     
