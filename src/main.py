@@ -112,7 +112,7 @@ def start_master_mode(
 
         if command in ["childs", "CHILDS"]:
             childs = storage.get_childs()
-            print("\n".join(childs))
+            print("\n".join([str(c) for c in childs]))
             continue
 
         response = client.send_message(command)
