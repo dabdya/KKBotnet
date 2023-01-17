@@ -121,6 +121,7 @@ def start_master_mode(
         for child in storage.get_childs():
             client.change_destination(child)
             response = client.send_message((str(command)))
+            print("Response child {}".format(child))
             print(response)
 
         print("#" * 80)
