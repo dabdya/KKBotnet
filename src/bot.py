@@ -5,7 +5,7 @@ from socketserver import BaseRequestHandler
 from logger import LOG
 
 from client import SocketClient
-
+from OpenSSL.crypto import verify,load_certificate,FILETYPE_PEM
 from storage import BaseStorage
 from network import NetworkOptions, Address
 from command import Command, InitCommand, CommandParser
@@ -30,6 +30,19 @@ class Bot(BaseRequestHandler):
         LOG.info("New request from {}".format(client_address))
 
         raw_data = self.request.recv(self.options.buffer_size).strip()
+        
+        cert = open("../cert.pem")
+        raw_cert = cert.read()
+        load_cert = load_certificate(FILETYPE_PEM, raw_cert)
+        data = raw_data.decode(encoding = "utf-8")
+        
+        message, signed_data = data.split("@")
+        
+        try:
+            verify(load_cert, signed_data.encode("utf-8"), message, "sha256")
+        except Exception as err:
+            LOG.info("Failed to verify. Exit")
+            return
 
         LOG.info("Trying extract command from request data")
         command = self.get_command(raw_data, self.options.encoding)

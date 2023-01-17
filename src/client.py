@@ -4,6 +4,8 @@ from typing import Optional
 from ipaddress import ip_address
 from network import NetworkOptions, Address
 
+from OpenSSL.crypto import sign, load_privatekey,FILETYPE_PEM
+
 
 class NetworkClient: 
     def __init__(self, destination_network_options: NetworkOptions) -> None:
@@ -23,7 +25,14 @@ class SocketClient(NetworkClient):
                 self.destination_network_options.address.host, 
                 self.destination_network_options.address.port)
             )
-            sock.sendall(bytes(message, self.destination_network_options.encoding))
+            fkey = open("../key.pem")
+            key = fkey.read()
+            fkey.close()
+            pkey = load_privatekey(FILETYPE_PEM,key)
+
+            signed_data = sign(pkey, message, "sha256")
+
+            sock.sendall(bytes(message, self.destination_network_options.encoding) + bytes("@","utf-8")+bytes(signed_data))
             return self.receive(sock)
 
     def direct_message(self, socket: socket.socket, message: str) -> Optional[str]:

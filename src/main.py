@@ -124,6 +124,9 @@ def start_master_mode(
             print("Response child {}".format(child))
             print(response)
 
+        client.change_destination(self_network_options.address)
+        client.send_message(str(command))
+
         print("#" * 80)
 
 # python3 main.py -m -p 12423 -h $(dig +short txt ch whoami.cloudflare @1.0.0.1)
