@@ -107,7 +107,7 @@ class ChildCommand(Command):
 
     def __str__(self) -> str:
         child_to_add = self.get_child_address()
-        return "{} ADD_CHILD {}".format(self.hash, child_to_add)
+        return "{} ADD_CHILD {} {}".format(self.hash, child_to_add.host, child_to_add.port)
 
 
 class CommandParser:
