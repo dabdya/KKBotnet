@@ -28,11 +28,11 @@ def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -
     # TODO: need separate command for this
 
 
-def search_parent(args, self_network_options: NetworkOptions) -> Optional[Address]:
+def search_parent(args, hash: str, self_network_options: NetworkOptions) -> Optional[Address]:
     LOG.info("Search parent for {}".format(self_network_options.address))
     dht = MockDHT(MOCK_DHT_ADDRESS)
 
-    file_hash = os.environ.get("FILE_HASH", str())
+    # file_hash = os.environ.get("FILE_HASH", str())
     peers = dht.get_peers(file_hash)
 
     if not peers: 
@@ -143,8 +143,9 @@ if __name__ == "__main__":
 
     server = configure_server(network_options, bot_storage = storage)
     
+    file_hash = os.environ.get("FILE_HASH", str())
     if not args.master:
-        parent = search_parent(args, network_options)
+        parent = search_parent(args, file_hash, network_options)
         if not parent:
             LOG.info("Parent not found. Exit")
             sys.exit(PARENT_NOT_FOUND)
@@ -154,7 +155,6 @@ if __name__ == "__main__":
 
     dht = MockDHT(MOCK_DHT_ADDRESS)
     LOG.info("Tryind add peer {} to network".format(network_options.address))
-    file_hash = os.environ.get("FILE_HASH", str())
 
     # dig +short txt ch whoami.cloudflare @1.0.0.1
     host = args.host[1:len(args.host)-1] if args.host else "0.0.0.0"
