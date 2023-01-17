@@ -92,3 +92,5 @@ class NetworkOptions:
 
         self.address.port = options["port"]
         LOG.info("Port successfully changed. New port is {}".format(self.address.port))
+
+        return True

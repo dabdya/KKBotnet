@@ -57,7 +57,7 @@ class Bot(BaseRequestHandler):
         self.storage.add_hash_command(command)
 
         parent = self.storage.get_parent()
-        LOG.info("Extracted parent from storage {}".format(parent))
+        LOG.info("Extracted {} parent from storage".format(parent))
 
         # if not isinstance(command, InitCommand):
         #     if parent.host != client_address.host:
