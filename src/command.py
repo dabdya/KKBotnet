@@ -65,6 +65,7 @@ class InitCommand(Command):
 
     def execute(self) -> str:
         child = self.get_child_address()
+        LOG.info("Child address: {}".format(child))
         if child in self.storage.get_childs():
             return "ALREADY"
 
@@ -73,7 +74,7 @@ class InitCommand(Command):
     
     def __str__(self) -> str:
         child = self.get_child_address()
-        return "{} INIT {}".format(self.hash, child)
+        return "{} INIT {} {}".format(self.hash, child.host, child.port)
 
 class ChildCommand(Command):
     """ Randomly selects a child host in the storage to redirect. 
