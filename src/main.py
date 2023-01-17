@@ -28,7 +28,7 @@ def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -
     # TODO: need separate command for this
 
 
-def search_parent(self_network_options: NetworkOptions) -> Optional[Address]:
+def search_parent(args, self_network_options: NetworkOptions) -> Optional[Address]:
     LOG.info("Search parent for {}".format(self_network_options.address))
     dht = MockDHT(MOCK_DHT_ADDRESS)
 
@@ -53,8 +53,9 @@ def search_parent(self_network_options: NetworkOptions) -> Optional[Address]:
 
         try:
             LOG.info("Send request to {}".format(peer_address))
+            host = args.host[1:len(args.host)-1] if args.host else "0.0.0.0"
             received = client.send_message(
-                f"0 INIT {self_network_options.address.host} {self_network_options.address.port}"
+                f"0 INIT {host} {self_network_options.address.port}"
             )
 
         except TimeoutError as err:
@@ -143,7 +144,7 @@ if __name__ == "__main__":
     server = configure_server(network_options, bot_storage = storage)
     
     if not args.master:
-        parent = search_parent(network_options)
+        parent = search_parent(args, network_options)
         if not parent:
             LOG.info("Parent not found. Exit")
             sys.exit(PARENT_NOT_FOUND)
@@ -156,9 +157,9 @@ if __name__ == "__main__":
     file_hash = os.environ.get("FILE_HASH", str())
 
     # dig +short txt ch whoami.cloudflare @1.0.0.1
-    host = args.host if args.host else "0.0.0.0"
+    host = args.host[1:len(args.host)-1] if args.host else "0.0.0.0"
     dht.add_peers([
-        Address(ip_address(args.host[1:len(args.host)-1]), network_options.address.port), ], file_hash)
+        Address(ip_address(host), network_options.address.port), ], file_hash)
     
     try:
         LOG.info("Trying start server on {}".format(network_options.address))
