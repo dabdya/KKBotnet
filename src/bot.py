@@ -73,10 +73,7 @@ class Bot(BaseRequestHandler):
         execute_result = self.execute_command(command)
 
         LOG.info("Sending backward report to {}".format(client_address))
-
-        if parent:
-            LOG.info("Sending backward report from self to {}".format(parent))
-            self.backward_report(execute_result)
+        self.backward_report(execute_result)
 
     def get_command(self, raw_data: bytes, encoding: str) -> Union[Command, None]:
         """Tries parse command and returns it"""
