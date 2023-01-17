@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 from ipaddress import ip_address
 from socketserver import BaseRequestHandler
 
@@ -6,12 +6,9 @@ from logger import LOG
 
 from client import SocketClient
 
-from dicts.commands_dict import (
-    ADD_CHILD_COMMAND, CONSOLE_COMMAND, INIT_COMMAND, REPORT_COMMAND)
-
 from storage import BaseStorage
 from network import NetworkOptions, Address
-from command import Command, ConsoleCommand, ChildCommand, InitCommand, ReportCommand
+from command import Command, InitCommand, CommandParser
 
 
 class Bot(BaseRequestHandler):
@@ -21,6 +18,7 @@ class Bot(BaseRequestHandler):
 
     def __init__(self, storage: BaseStorage, options: NetworkOptions, *args, **kwargs) -> None:
         self.storage, self.options = storage, options
+        self.parent_requried_message = "Only parent commands are executed"
         super().__init__(*args, **kwargs)
 
     def handle(self) -> None:
@@ -43,8 +41,6 @@ class Bot(BaseRequestHandler):
             )
             return
 
-        LOG.info("Extracted command `{}`".format(command))
-        # TODO: add command counter
         is_command_already_execute: bool = self.storage.is_command_hashed(command)
         if is_command_already_execute:
             LOG.info("Command `{}` already executed. Closing connection".format(command))
@@ -57,45 +53,35 @@ class Bot(BaseRequestHandler):
         self.storage.add_hash_command(command)
 
         parent = self.storage.get_parent()
-        LOG.info("Extracted {} parent from storage".format(parent))
+    
+        if parent is not None:
+            LOG.info("Extracted {} parent from storage".format(parent))
+            if parent.host != client_address.host:
+                LOG.info("Parent {} does not match with client {}".format(parent, client_address))
+                SocketClient(self.options).direct_message(
+                    socket = self.request, message = self.parent_requried_message
+                )
+                return
+        else:
+            LOG.info("Parent is empty because master mode enabled")
 
-        # if not isinstance(command, InitCommand):
-        #     if parent.host != client_address.host:
-        #         SocketClient(self.options).direct_message(
-        #             socket = self.request, message = "You are not my parent"
-        #         )
-        #         return
-        # else:
-        #     if parent == client_address:
-        #         SocketClient(self.options).direct_message(
-        #             socket = self.request, message = "INIT already executed"
-        #         )
-        #         return
+        if not isinstance(command, InitCommand):
+            LOG.info("Forwarding command `{}` to childs".format(command))
+            self.forward_command(command)
 
-        self.forward_command(command)
-        self.backward_report(self.execute_command(command))
+        LOG.info("Executing command `{}`".format(command))
+        execute_result = self.execute_command(command)
+
+        LOG.info("Sending backward report to {}".format(client_address))
+        self.backward_report(execute_result)
 
     def get_command(self, raw_data: bytes, encoding: str) -> Union[Command, None]:
         """Tries parse command and returns it"""
         data = raw_data.decode(encoding = encoding)
-
-        if data.find(CONSOLE_COMMAND) >= 0:
-            _, name, *args = data.split()
-            return ConsoleCommand(name, tuple(args))
-            
-        if data.find(REPORT_COMMAND) >= 0:
-            _, report = data.split(" ",maxsplit=1)
-            return ReportCommand(self.storage, report, self.options)
-
-        elif data.find(ADD_CHILD_COMMAND) >= 0:
-            _, host, port = data.split(":")
-            child_address = Address(host = ip_address(host), port = int(port))
-            return ChildCommand(self.storage, child_address, self.options)
-
-        elif data.find(INIT_COMMAND) >= 0:
-            _, host, port = data.split(":")
-            child_address = Address(host = ip_address(host), port = int(port))
-            return InitCommand(self.storage, child_address)
+        command = CommandParser.get_command(
+            data, self.storage, self.options, delimiter = " ")
+        LOG.info("Extracted command `{}`".format(command))
+        return command
 
     def execute_command(self, command: Command) -> str:
         """Executes command and returns result"""
@@ -103,17 +89,22 @@ class Bot(BaseRequestHandler):
 
     def forward_command(self, command: Command) -> None:
         """Send a command to each child in the storage"""
-        if isinstance(command, InitCommand):
-            return
         client = SocketClient(self.options)
         for child in self.storage.get_childs():
+            LOG.info("Proccessing child {}".format(child))
             client.change_destination(child)
-            data = client.send_message(str(command))
-            self.backward_report(data)
-            if data == "Not support operation":
+
+            response = client.send_message(str(command))
+            LOG.info("Child response is `{}`".format(response))
+
+            LOG.info(
+                "Sending backward report from child {} to {}".format(child, self.storage.get_parent()))
+            self.backward_report(response)
+
+            if response == self.parent_requried_message:
+                LOG.info("Deleting child {} because parent request failed".format(child))
                 self.storage.delete_child(child)
 
     def backward_report(self, report: str) -> None:
         """Send a command result to each parent"""
-        # TODO: backward send only parent, not direct
         SocketClient(self.options).direct_message(socket = self.request, message = report)

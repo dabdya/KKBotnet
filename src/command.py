@@ -1,88 +1,137 @@
-import subprocess
-from typing import Tuple, Dict
-from abc import ABC, abstractmethod
+import subprocess, random
+from typing import Tuple, Dict, Optional, List
+from ipaddress import ip_address
+
+import sys, inspect
+from logger import LOG
 
 from network import Address, NetworkOptions
 from storage import BaseStorage
 from client import SocketClient
 
 
-class Command(ABC):
+class Command:
     """Command interface"""
     def __init__(
-        self, name: str = "", 
+        self, hash: str, storage: BaseStorage, options: NetworkOptions, 
         args: Tuple[str] = tuple(), **kwargs: Dict[str, str]) -> None:
 
-        self.name, self.args = name, args
+        self.storage, self.options = storage, options
+        self.hash, self.args = hash, args
+
         for arg_name, arg_value in kwargs.items():
             setattr(self, arg_name, arg_value)
 
-    @abstractmethod
     def execute(self) -> str:
-        pass
+        raise NotImplementedError()
 
-    @abstractmethod
+    def match(self, command: str) -> bool:
+        raise NotImplementedError()
+
     def __str__(self) -> str:
-        pass
+        raise NotImplementedError()
     
 
 class ConsoleCommand(Command):
-    """UNIX shell command executor"""
+    """Unix shell command executor"""
     def execute(self) -> str:
-        input_ = " ".join([self.name, *self.args])
+        bash_input = " ".join(self.args)
         try:
-            output = subprocess.check_output(input_, shell = True).decode()
+            output = subprocess.check_output(bash_input, shell = True).decode()
             return output
         except subprocess.CalledProcessError as err:
             return str(err)
 
     def __str__(self) -> str:
-        return "CONSOLE {}".format(" ".join([self.name, *self.args]))
+        return "{} CONSOLE {}".format(self.hash, " ".join(self.args))
 
 
 class ReportCommand(Command):
-    def __init__(self, storage: BaseStorage, report: str, options: NetworkOptions) -> None:
-        self.storage, self.report, self.options = storage, report, options
-
+    """Report command executor"""
     def execute(self) -> str:
-        parent = self.storage.get_parent()
         client = SocketClient(self.options)
-        client.change_destination(parent)
+        client.change_destination(self.storage.get_parent())
         client.send_message(str(self))
 
     def __str__(self) -> str:
-        return "REPORT {}".format(self.report)
+        return "{} REPORT {}".format(self.hash, " ".join(self.args))
 
 
 class InitCommand(Command):
-    def __init__(self, storage: BaseStorage, child: Address) -> None:
-        self.storage = storage
-        self.child = child
+    """Init command executor"""
+    def get_child_address(self) -> Address:
+        args = self.args.split(":")
+        host, port = ip_address(args[0]), int(args[1])
+        return Address(host, port)
 
     def execute(self) -> str:
-        if self.child in self.storage.get_childs():
+        child = self.get_child_address()
+        if child in self.storage.get_childs():
             return "ALREADY"
 
-        self.storage.add_child(self.child)
+        self.storage.add_child(child)
         return "OK"
     
     def __str__(self) -> str:
-        return "INIT"
+        child = self.get_child_address()
+        return "{} INIT {}".format(self.hash, child)
 
 class ChildCommand(Command):
-    """ Randomly selects a child host in the storage to redirect. Then adds a child to self storage"""
-    def __init__(
-        self, storage: BaseStorage, child: Address, options: NetworkOptions) -> None:
-        self.storage, self.child, self.options = storage, child, options
+    """ Randomly selects a child host in the storage to redirect. 
+        Then adds a child to self storage
+    """
+
+    def get_child_address(self) -> Address:
+        args = self.args.split(":")
+        host, port = ip_address(args[0]), int(args[1])
+        return Address(host, port)
 
     def execute(self) -> str:
+        child_to_add = self.get_child_address()
         client = SocketClient(self.options)
-        for child in self.storage.get_childs():
+        childs = self.storage.get_childs()
+
+        LOG.info("Randomly selected child for forwarding")
+        if childs:  
+            child = random.choice(childs)
+            LOG.info("Child {} was selected".format(child))
             client.change_destination(child)
-            client.send_message(str(self))
-        
-        self.storage.add_child(self.child)
+            report = client.send_message(str(self))
+            LOG.info("Child {} response report `{}`".format(report))
+        else:
+            LOG.info("Not found child in storage. Forwarding canceled")
+
+        self.storage.add_child(child_to_add)
         return "OK"
 
     def __str__(self) -> str:
-        return "ADD_CHILD:{}".format(str(self.child))
+        child_to_add = self.get_child_address()
+        return "{} ADD_CHILD {}".format(self.hash, child_to_add)
+
+
+class CommandParser:
+    @staticmethod
+    def support_commands() -> List[Command]:
+        commands = [
+            (name, cls)
+            for name, cls in inspect.getmembers(sys.modules[__name__])
+            if inspect.isclass(cls) and issubclass(cls, Command) and type(cls) != Command
+        ]
+        return commands
+
+    @staticmethod
+    def get_command(
+        decoded_data: str, storage: BaseStorage, 
+        options: NetworkOptions, delimiter: str = " ") -> Optional[Command]:
+        support_commands = CommandParser.support_commands()
+        LOG.info("Support commands is {}".format([
+            cmd_name for cmd_name, _ in support_commands])
+        )
+
+        decoded_hash, decoded_name, *decoded_args = decoded_data.split(delimiter)
+        LOG.info("Parsed values: hash={}, name={}, args={}".format(
+            decoded_hash, decoded_name, decoded_args))
+
+        for command_name, command_cls in support_commands:
+            if command_name.lower().startswith(decoded_name.lower()):
+                return command_cls(decoded_hash, storage, options, decoded_args)

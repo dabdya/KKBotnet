@@ -17,7 +17,6 @@ from logger import LOG
 
 
 PARENT_NOT_FOUND = -1
-MASTER_END_SESSION = 1
 
 MOCK_DHT_ADDRESS = Address(ip_address("51.250.96.145"), 3000)
 
@@ -56,7 +55,7 @@ def search_parent(self_network_options: NetworkOptions) -> Optional[Address]:
         try:
             LOG.info("Send request to {}".format(peer_address))
             received = client.send_message(
-                f"INIT:{self_network_options.address.host}:{self_network_options.address.port}"
+                f"INIT {self_network_options.address.host} {self_network_options.address.port}"
             )
 
         except TimeoutError as err:
@@ -102,25 +101,20 @@ def load_environment(file: Path) -> None:
     dotenv.load_dotenv(file)
 
 
-def start_master_mode(storage: BaseStorage, prompt: str = "master") -> None:
-    netwoek_options = NetworkOptions(
-        address = None,
-        buffer_size = 1024,
-        encoding = "utf-8"
-    )
-    client = SocketClient(netwoek_options)
+def start_master_mode(
+    storage: BaseStorage, self_network_options: NetworkOptions, prompt: str = "master") -> None:
+
+    client = SocketClient(self_network_options)
+    LOG.info("Master mode started on {}".format(network_options.address))
 
     while True:
         command = input(f"[{prompt}]$ ")
 
-        if command == "exit":
-            sys.exit(MASTER_END_SESSION)
+        if command in ["childs", "CHILDS"]:
+            childs = storage.get_childs()
+            print("\n".join(childs))
+            continue
 
-        for child in storage.get_childs():
-            client.change_destination(child)
-            client.send_message(command)
-
-        client.change_destination(Address(ip_address("0.0.0.0"), 1232))
         response = client.send_message(command)
         print(response)
 
@@ -157,18 +151,23 @@ if __name__ == "__main__":
             LOG.info("Save parent in storage")
             storage.change_parent(parent)
 
+    dht = MockDHT(MOCK_DHT_ADDRESS)
+    LOG.info("Tryind add peer {} to network".format(network_options.address))
+    file_hash = os.environ.get("FILE_HASH", str())
+    # dht.add_peers([network_options.address, ], file_hash)
+
     try:
         LOG.info("Trying start server on {}".format(network_options.address))
         program = threading.Thread(target = partial(run_server, server))
         program.start(); time.sleep(0.5)
         
         if args.master:
-            start_master_mode(storage)
+            start_master_mode(storage, network_options)
 
     except OSError as err:
         LOG.info("Cannot start server. Error {}".format(err))
         network_options.change_port(new_port = 0)
         LOG.info("Setting port to zero for auto generation. Restarting")
-        notify_port_changed(network_options, storage)
+        # notify_port_changed(network_options, storage)
         server = configure_server(network_options, bot_storage = storage)
         run_server(server)
