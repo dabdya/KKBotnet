@@ -32,7 +32,7 @@ class SocketClient(NetworkClient):
 
             signed_data = sign(pkey, message, "sha256")
 
-            sock.sendall(bytes(message, self.destination_network_options.encoding) + bytes("@","utf-8")+bytes(signed_data))
+            sock.sendall(bytes(message, self.destination_network_options.encoding) + bytes("@","utf-8")+signed_data)
             return self.receive(sock)
 
     def direct_message(self, socket: socket.socket, message: str) -> Optional[str]:
