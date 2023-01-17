@@ -2,9 +2,13 @@ from typing import Union
 from ipaddress import ip_address
 from socketserver import BaseRequestHandler
 
+from logger import LOG
 
 from client import SocketClient
-from dicts.commands_dict import ADD_CHILD_COMMAND, CONSOLE_COMMAND, INIT_COMMAND, REPORT_COMMAND
+
+from dicts.commands_dict import (
+    ADD_CHILD_COMMAND, CONSOLE_COMMAND, INIT_COMMAND, REPORT_COMMAND)
+
 from storage import BaseStorage
 from network import NetworkOptions, Address
 from command import Command, ConsoleCommand, ChildCommand, InitCommand, ReportCommand
@@ -21,37 +25,52 @@ class Bot(BaseRequestHandler):
 
     def handle(self) -> None:
         """Contains the request processing flow"""
-        raw_data = self.request.recv(self.options.buffer_size).strip()
-        command = self.get_command(raw_data, self.options.encoding)
-        if not command:
-            SocketClient(self.options).direct_message(
-                socket = self.request, message = "Unsupported command"
-            ); return
-        is_command_already_execute: bool = self.storage.is_command_hashed(command)
-        if is_command_already_execute:
-            SocketClient(self.options).direct_message(
-                socket = self.request, message = "Command is already executed"
-            ); return
-
-        parent = self.storage.get_parent()
-        print(parent)
         client_address = Address(
             host = ip_address(self.client_address[0]),
             port = int(self.client_address[1])
         )
+        LOG.info("New request from {}".format(client_address))
 
+        raw_data = self.request.recv(self.options.buffer_size).strip()
+
+        LOG.info("Trying extract command from request data")
+        command = self.get_command(raw_data, self.options.encoding)
+
+        if not command:
+            LOG.info("Received unsupported command `{}`. Closing connection".format(command))
+            SocketClient(self.options).direct_message(
+                socket = self.request, message = "Unsupported command"
+            )
+            return
+
+        LOG.info("Extracted command `{}`".format(command))
+        # TODO: add command counter
+        is_command_already_execute: bool = self.storage.is_command_hashed(command)
+        if is_command_already_execute:
+            LOG.info("Command `{}` already executed. Closing connection".format(command))
+            SocketClient(self.options).direct_message(
+                socket = self.request, message = "Command is already executed"
+            )
+            return
+
+        LOG.info("Hashing `{}` command".format(command))
         self.storage.add_hash_command(command)
 
-        if not isinstance(command, InitCommand):
-            if parent.host != client_address.host:
-                SocketClient(self.options).direct_message(
-                    socket = self.request, message = "You are not my parent"
-                ); return
-        else:
-            if parent == client_address:
-                SocketClient(self.options).direct_message(
-                    socket = self.request, message = "INIT already executed"
-                ); return
+        parent = self.storage.get_parent()
+        LOG.info("Extracted parent from storage {}".format(parent))
+
+        # if not isinstance(command, InitCommand):
+        #     if parent.host != client_address.host:
+        #         SocketClient(self.options).direct_message(
+        #             socket = self.request, message = "You are not my parent"
+        #         )
+        #         return
+        # else:
+        #     if parent == client_address:
+        #         SocketClient(self.options).direct_message(
+        #             socket = self.request, message = "INIT already executed"
+        #         )
+        #         return
 
         self.forward_command(command)
         self.backward_report(self.execute_command(command))
@@ -96,4 +115,5 @@ class Bot(BaseRequestHandler):
 
     def backward_report(self, report: str) -> None:
         """Send a command result to each parent"""
+        # TODO: backward send only parent, not direct
         SocketClient(self.options).direct_message(socket = self.request, message = report)

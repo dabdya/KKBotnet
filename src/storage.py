@@ -69,6 +69,9 @@ class InMemoryStorage(BaseStorage):
         hash = hashlib.md5(str(command).encode('utf-8')).hexdigest()
         self.hash_commands.add(hash)
 
+    def __str__(self) -> str:
+        return "InMemoryStorage"
+
 
 class FileStorage(BaseStorage):
     @staticmethod
