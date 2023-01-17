@@ -45,7 +45,6 @@ def search_parent(self_network_options: NetworkOptions) -> Optional[Address]:
     for i, peer_address in enumerate(peers):
         LOG.info("Processing {}/{} candidate".format(i, len(peers)))
         parent_options = NetworkOptions(
-            path = None,
             address = peer_address,
             buffer_size = network_options.buffer_size,
             encoding = network_options.encoding
