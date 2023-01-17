@@ -54,7 +54,7 @@ def search_parent(self_network_options: NetworkOptions) -> Optional[Address]:
         try:
             LOG.info("Send request to {}".format(peer_address))
             received = client.send_message(
-                f"INIT {self_network_options.address.host} {self_network_options.address.port}"
+                f"0 INIT {self_network_options.address.host} {self_network_options.address.port}"
             )
 
         except TimeoutError as err:
