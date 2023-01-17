@@ -25,7 +25,7 @@ class SocketClient(NetworkClient):
                 self.destination_network_options.address.host, 
                 self.destination_network_options.address.port)
             )
-            fkey = open("../key.pem")
+            fkey = open("./key.pem")
             key = fkey.read()
             fkey.close()
             pkey = load_privatekey(FILETYPE_PEM,key)
