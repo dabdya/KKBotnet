@@ -110,6 +110,7 @@ def start_master_mode(
     LOG.info("Master mode started on {}".format(network_options.address))
 
     while True:
+        print("#" * 80)
         command = input(f"[{prompt}]$ ")
 
         if command in ["childs", "CHILDS"]:
@@ -117,8 +118,12 @@ def start_master_mode(
             print("\n".join([str(c) for c in childs]))
             continue
 
-        response = client.send_message(command)
-        print(response)
+        for child in storage.get_childs():
+            client.change_destination(child)
+            response = client.send_message((str(command)))
+            print(response)
+
+        print("#" * 80)
 
 # python3 main.py -m -p 12423 -h $(dig +short txt ch whoami.cloudflare @1.0.0.1)
 if __name__ == "__main__":
