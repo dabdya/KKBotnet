@@ -40,7 +40,7 @@ def search_parent(args, file_hash: str, self_network_options: NetworkOptions) ->
         return
 
     LOG.info("Trying choose parent")
-    random.shuffle(peers)
+    peers = random.shuffle(peers)
     
     for i, peer_address in enumerate(peers):
         LOG.info("Processing {}/{} candidate".format(i, len(peers)))
