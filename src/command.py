@@ -60,8 +60,7 @@ class ReportCommand(Command):
 class InitCommand(Command):
     """Init command executor"""
     def get_child_address(self) -> Address:
-        args = self.args.split(":")
-        host, port = ip_address(args[0]), int(args[1])
+        host, port = ip_address(self.args[0]), int(self.args[1])
         return Address(host, port)
 
     def execute(self) -> str:
@@ -82,8 +81,7 @@ class ChildCommand(Command):
     """
 
     def get_child_address(self) -> Address:
-        args = self.args.split(":")
-        host, port = ip_address(args[0]), int(args[1])
+        host, port = ip_address(self.args[0]), int(self.args[1])
         return Address(host, port)
 
     def execute(self) -> str:
