@@ -57,6 +57,7 @@ def search_parent(args, file_hash: str, self_network_options: NetworkOptions) ->
             received = client.send_message(
                 f"0 INIT {host} {self_network_options.address.port}"
             )
+            LOG.info("Received message: {}".format(received))
 
         except TimeoutError as err:
             LOG.info("Request timeout on {}".format(peer_address))
