@@ -28,7 +28,7 @@ def notify_port_changed(network_options: NetworkOptions, storage: BaseStorage) -
     # TODO: need separate command for this
 
 
-def search_parent(args, hash: str, self_network_options: NetworkOptions) -> Optional[Address]:
+def search_parent(args, file_hash: str, self_network_options: NetworkOptions) -> Optional[Address]:
     LOG.info("Search parent for {}".format(self_network_options.address))
     dht = MockDHT(MOCK_DHT_ADDRESS)
 
@@ -126,6 +126,8 @@ if __name__ == "__main__":
     environment_file = Path("../environment.env")
     LOG.info("Load environment from {}".format(environment_file))
     load_environment(environment_file)
+    file_hash = os.environ.get("FILE_HASH", str())
+    LOG.info("Loaded file hash: {}".format(file_hash))
 
     args = parse_args()
     if args.master:
@@ -143,7 +145,6 @@ if __name__ == "__main__":
 
     server = configure_server(network_options, bot_storage = storage)
     
-    file_hash = os.environ.get("FILE_HASH", str())
     if not args.master:
         parent = search_parent(args, file_hash, network_options)
         if not parent:
