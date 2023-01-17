@@ -48,7 +48,7 @@ class MockDHT(DHT):
             for peer in json.loads(content)
         ]
 
-        LOG.info("Found {} peers".format("\n".join(peers)))
+        LOG.info("Found {} peers".format("\n".join([str(p) for p in peers])))
         LOG.info("Close connection for {}".format(self.address))
         conn.close()
         return peers
