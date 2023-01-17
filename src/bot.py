@@ -73,7 +73,10 @@ class Bot(BaseRequestHandler):
         execute_result = self.execute_command(command)
 
         LOG.info("Sending backward report to {}".format(client_address))
-        self.backward_report(execute_result)
+
+        if parent:
+            LOG.info("Sending backward report from self to {}".format(parent))
+            self.backward_report(execute_result)
 
     def get_command(self, raw_data: bytes, encoding: str) -> Union[Command, None]:
         """Tries parse command and returns it"""
@@ -96,10 +99,12 @@ class Bot(BaseRequestHandler):
 
             response = client.send_message(str(command))
             LOG.info("Child response is `{}`".format(response))
-
-            LOG.info(
-                "Sending backward report from child {} to {}".format(child, self.storage.get_parent()))
-            self.backward_report(response)
+            
+            parent = self.storage.get_parent()
+            if parent:
+                LOG.info(
+                    "Sending backward report from child {} to {}".format(child, parent))
+                self.backward_report(response)
 
             if response == self.parent_requried_message:
                 LOG.info("Deleting child {} because parent request failed".format(child))
