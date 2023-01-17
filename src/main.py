@@ -154,7 +154,7 @@ if __name__ == "__main__":
     dht = MockDHT(MOCK_DHT_ADDRESS)
     LOG.info("Tryind add peer {} to network".format(network_options.address))
     file_hash = os.environ.get("FILE_HASH", str())
-    # dht.add_peers([network_options.address, ], file_hash)
+    dht.add_peers([network_options.address, ], file_hash)
 
     try:
         LOG.info("Trying start server on {}".format(network_options.address))
